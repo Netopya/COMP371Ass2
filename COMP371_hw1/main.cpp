@@ -97,7 +97,7 @@ bool initialize() {
 
 	/// Create a window of size 640x480 and with title "Lecture 2: First Triangle"
 	glfwWindowHint(GLFW_DOUBLEBUFFER, GL_TRUE);
-	window = glfwCreateWindow(WIDTH, HEIGHT, "COMP371: Assignment 1", NULL, NULL);
+	window = glfwCreateWindow(WIDTH, HEIGHT, "COMP371: Assignment 2", NULL, NULL);
 	if (!window) {
 		fprintf(stderr, "ERROR: could not open window with GLFW3\n");
 		glfwTerminate();
@@ -261,7 +261,7 @@ int main() {
 	// The following commands will talk about our 'vertexbuffer' buffer
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 	// Give our vertices to OpenGL.
-	
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(
 		0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
@@ -273,7 +273,7 @@ int main() {
 		);
 
 
-	
+	glm::mat4 oriModel(model_matrix);
 
 	while (!glfwWindowShouldClose(window)) {
 		// wipe the drawing surface clear
@@ -283,10 +283,10 @@ int main() {
 
 		glUseProgram(shader_program);
 
-		g_vertex_buffer_data[0] = mousePosition.x;
-		g_vertex_buffer_data[1] = mousePosition.y;
+		//g_vertex_buffer_data[0] = mousePosition.x;
+		//g_vertex_buffer_data[1] = mousePosition.y;
 
-		glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
+		//model_matrix = glm::translate(oriModel, mousePosition);
 
 
 		//Pass the values of the three matrices to the shaders
