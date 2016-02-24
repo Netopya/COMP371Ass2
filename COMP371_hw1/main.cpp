@@ -48,12 +48,11 @@ const GLuint WIDTH = 800, HEIGHT = 600;
 
 glm::vec3 mousePosition;
 
-// An array of 3 vectors which represents 3 vertices
-GLfloat g_vertex_buffer_data[] = {
-	-0.2f, -0.2f, 0.0f,
-	0.2f, -0.2f, 0.0f,
-	0.0f,  0.2f, 0.0f,
-};
+int numberOfPoints;
+vector<glm::vec3> pointPositions;
+vector<glm::vec3> tangentPositions;
+
+GLfloat* g_vertex_buffer_data;
 
 // Helper function to convert vec3's into a formatted string
 string vec3tostring(glm::vec3 vec)
@@ -73,7 +72,28 @@ void keyPressed(GLFWwindow *_window, int key, int scancode, int action, int mods
 
 void mouseClick(GLFWwindow *_window, int button, int action, int mods)
 {
+	if (action != GLFW_PRESS)
+	{
+		return;
+	}
 
+	if (pointPositions.size() < numberOfPoints)
+	{
+		pointPositions.push_back(glm::vec3(mousePosition));
+	}
+	else if (tangentPositions.size() < numberOfPoints)
+	{
+		tangentPositions.push_back(glm::vec3(mousePosition));
+	}
+
+	cout << "Point positions:" << endl;
+
+	for (unsigned i = 0; i < pointPositions.size(); i++)
+	{
+		cout << vec3tostring(pointPositions[i]) << endl;
+	}
+
+	cout << endl;
 }
 
 void mousePositionCallback(GLFWwindow *_window, double xpos, double ypos)
@@ -84,7 +104,7 @@ void mousePositionCallback(GLFWwindow *_window, double xpos, double ypos)
 	mousePosition = glm::unProject(glm::vec3((float)xpos, (float)ypos, 0.0f), model_matrix, proj_matrix, glm::vec4(0, 0, w, h));
 	mousePosition.y = -mousePosition.y;
 
-	cout << vec3tostring(mousePosition) << endl;
+	//cout << vec3tostring(mousePosition) << endl;
 }
 
 
@@ -247,6 +267,12 @@ GLuint loadShaders(std::string vertex_shader_path, std::string fragment_shader_p
 
 int main() {
 
+	
+
+	cout << "How many points would you like to enter?" << endl;
+	cin >> numberOfPoints;
+
+
 	initialize();
 
 	///Load the shaders
@@ -255,13 +281,14 @@ int main() {
 	// This will identify our vertex buffer
 	GLuint vertexbuffer;
 
+	
 	// Generate 1 buffer, put the resulting identifier in vertexbuffer
 	glGenBuffers(1, &vertexbuffer);
 
 	// The following commands will talk about our 'vertexbuffer' buffer
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 	// Give our vertices to OpenGL.
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(
 		0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
@@ -273,7 +300,7 @@ int main() {
 		);
 
 
-	glm::mat4 oriModel(model_matrix);
+
 
 	while (!glfwWindowShouldClose(window)) {
 		// wipe the drawing surface clear
@@ -288,6 +315,43 @@ int main() {
 
 		//model_matrix = glm::translate(oriModel, mousePosition);
 
+		delete g_vertex_buffer_data;
+
+		int pointsBufferSize = (pointPositions.size() + tangentPositions.size()) * 3;
+		int tangeantLinesBufferSize = tangentPositions.size() * 2 * 3;
+		g_vertex_buffer_data = new GLfloat[pointsBufferSize + tangeantLinesBufferSize];
+
+		for (unsigned i = 0; i < pointPositions.size(); i++)
+		{
+			g_vertex_buffer_data[i * 3] = pointPositions[i].x;
+			g_vertex_buffer_data[i * 3 + 1] = pointPositions[i].y;
+			g_vertex_buffer_data[i * 3 + 2] = pointPositions[i].z;
+		}
+
+		int offset = pointPositions.size() * 3;
+
+		for (unsigned i = 0; i < tangentPositions.size(); i++)
+		{
+			g_vertex_buffer_data[offset + i * 3] = tangentPositions[i].x;
+			g_vertex_buffer_data[offset + i * 3 + 1] = tangentPositions[i].y;
+			g_vertex_buffer_data[offset + i * 3 + 2] = tangentPositions[i].z;
+		}
+
+		for (unsigned i = 0; i < tangentPositions.size(); i++)
+		{
+			g_vertex_buffer_data[pointsBufferSize + i * 6] = pointPositions[i].x;
+			g_vertex_buffer_data[pointsBufferSize + i * 6 + 1] = pointPositions[i].y;
+			g_vertex_buffer_data[pointsBufferSize + i * 6 + 2] = pointPositions[i].z;
+			g_vertex_buffer_data[pointsBufferSize + i * 6 + 3] = tangentPositions[i].x;
+			g_vertex_buffer_data[pointsBufferSize + i * 6 + 4] = tangentPositions[i].y;
+			g_vertex_buffer_data[pointsBufferSize + i * 6 + 5] = tangentPositions[i].z;
+		}
+
+
+		glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data) * (pointsBufferSize + tangeantLinesBufferSize), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
+
+
+
 
 		//Pass the values of the three matrices to the shaders
 		glUniformMatrix4fv(proj_matrix_id, 1, GL_FALSE, glm::value_ptr(proj_matrix));
@@ -296,7 +360,8 @@ int main() {
 
 		glBindVertexArray(VAO);
 		// Draw the triangle !
-		glDrawArrays(GL_TRIANGLES, 0, 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
+		glDrawArrays(GL_POINTS, 0, pointsBufferSize / 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
+		glDrawArrays(GL_LINES, pointsBufferSize / 3, tangeantLinesBufferSize / 3);
 
 		glBindVertexArray(0);
 
