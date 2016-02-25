@@ -39,6 +39,8 @@ glm::mat4 proj_matrix;
 glm::mat4 view_matrix;
 glm::mat4 model_matrix;
 
+float hermiteBasis[16] = {2, -2, 1, 1, -3, 3, -2, -1, 0, 0, 1, 0, 1, 0, 0, 0};
+glm::mat4 hermiteBasisMatrix;
 
 GLuint VBO, VAO, EBO;
 
@@ -51,6 +53,8 @@ glm::vec3 mousePosition;
 int numberOfPoints;
 vector<glm::vec3> pointPositions;
 vector<glm::vec3> tangentPositions;
+
+vector<glm::vec3> lines;
 
 GLfloat* g_vertex_buffer_data;
 
@@ -68,6 +72,17 @@ void keyPressed(GLFWwindow *_window, int key, int scancode, int action, int mods
 	default: break;
 	}
 	return;
+}
+
+glm::vec3* myMat1x4Multiply(glm::vec4 &paramBasis, glm::mat3x4 &control)
+{
+	return new glm::vec3(glm::dot(paramBasis,(control)[0]), glm::dot(paramBasis,(control)[1]), glm::dot(paramBasis,(control)[2]));
+}
+
+glm::vec4* anotherFunkyM(glm::vec4 &param, glm::mat4 &basis)
+{
+	glm::mat4 tmp(glm::transpose(basis));
+	return new glm::vec4(glm::dot(param, tmp[0]), glm::dot(param, tmp[1]), glm::dot(param, tmp[2]), glm::dot(param, tmp[3]));
 }
 
 void mouseClick(GLFWwindow *_window, int button, int action, int mods)
@@ -150,6 +165,8 @@ bool initialize() {
 	/// Enable the depth test i.e. draw a pixel if it's closer to the viewer
 	glEnable(GL_DEPTH_TEST); /// Enable depth-testing
 	glDepthFunc(GL_LESS);	/// The type of testing i.e. a smaller value as "closer"
+
+	hermiteBasisMatrix = glm::make_mat4(hermiteBasis);
 
 	return true;
 }
@@ -300,6 +317,15 @@ int main() {
 		);
 
 
+	bool first = false;
+
+	
+	
+	pointPositions.push_back(glm::vec3(0, 0, 1));
+	pointPositions.push_back(glm::vec3(0.5, 0, 1));
+	tangentPositions.push_back(glm::vec3(0, 0.5, 1));
+	tangentPositions.push_back(glm::vec3(0.5, 0.5, 1));
+	
 
 
 	while (!glfwWindowShouldClose(window)) {
@@ -315,11 +341,81 @@ int main() {
 
 		//model_matrix = glm::translate(oriModel, mousePosition);
 
+		
+		if (tangentPositions.size() > 1 && !first)
+		{
+			first = true;
+
+			lines.empty();
+
+			float u = 0;
+			while (u <= 1)
+			{
+				glm::vec4 param(u*u*u, u*u, u, 1);
+				//glm::vec4 param(1, u, u*u, u*u*u);
+				glm::mat4 paramm(u*u*u, u*u, u, 1,0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+				/*
+				float controlValues[12] = {
+					pointPositions[0].x, pointPositions[0].y, pointPositions[0].z,
+					pointPositions[1].x, pointPositions[1].y, pointPositions[1].z,
+					tangentPositions[0].x, tangentPositions[0].y, tangentPositions[0].z,
+					tangentPositions[1].x, tangentPositions[1].y, tangentPositions[1].z
+				};*/
+
+				float controlValues[12] = {
+					pointPositions[0].x, pointPositions[1].x, tangentPositions[0].x, tangentPositions[1].x,
+					pointPositions[0].y, pointPositions[1].y, tangentPositions[0].y, tangentPositions[1].y,
+					pointPositions[0].z, pointPositions[1].z, tangentPositions[0].z, tangentPositions[1].z					
+				};
+
+				/*
+				float controlValues[8] = {
+					pointPositions[0].x, pointPositions[0].y,
+					pointPositions[1].x, pointPositions[1].y,
+					tangentPositions[0].x, tangentPositions[0].y,
+					tangentPositions[1].x, tangentPositions[1].y
+				};
+				*/
+
+				//glm::mat2x4 controlMatrix = glm::make_mat2x4(controlValues);
+				glm::mat3x4 controlMatrix = glm::make_mat3x4(controlValues);
+
+				
+				/*
+				glm::mat3x4 controlMatrix(pointPositions[0].x, pointPositions[0].y, pointPositions[0].z,
+					pointPositions[1].x, pointPositions[1].y, pointPositions[1].z,
+					tangentPositions[0].x, tangentPositions[0].y, tangentPositions[0].z,
+					tangentPositions[1].x, tangentPositions[1].y, tangentPositions[1].z);
+				*/
+
+				//glm::mat4x3 controlMatrix;
+
+				//glm::mat3x4 controlMatrix(pointPositions[0], pointPositions[1], pointPositions[0], pointPositions[0])
+
+				//lines.push_back(glm::vec3(param*hermiteBasisMatrix*controlMatrix, 1));
+				
+				
+				//lines.push_back(*myMat1x4Multiply((param*glm::transpose(hermiteBasisMatrix)),controlMatrix));
+				
+				glm::vec4 tmp = *anotherFunkyM(param, hermiteBasisMatrix);
+
+				lines.push_back(*myMat1x4Multiply(tmp, controlMatrix));
+				
+				//lines.push_back(glm::transpose(controlMatrix*glm::transpose(hermiteBasisMatrix)*param));
+				u += 0.005f;
+
+				
+			}
+
+			u = 0;
+		}
+
 		delete g_vertex_buffer_data;
 
 		int pointsBufferSize = (pointPositions.size() + tangentPositions.size()) * 3;
 		int tangeantLinesBufferSize = tangentPositions.size() * 2 * 3;
-		g_vertex_buffer_data = new GLfloat[pointsBufferSize + tangeantLinesBufferSize];
+		g_vertex_buffer_data = new GLfloat[pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3)];
 
 		for (unsigned i = 0; i < pointPositions.size(); i++)
 		{
@@ -337,6 +433,7 @@ int main() {
 			g_vertex_buffer_data[offset + i * 3 + 2] = tangentPositions[i].z;
 		}
 
+		
 		for (unsigned i = 0; i < tangentPositions.size(); i++)
 		{
 			g_vertex_buffer_data[pointsBufferSize + i * 6] = pointPositions[i].x;
@@ -347,8 +444,18 @@ int main() {
 			g_vertex_buffer_data[pointsBufferSize + i * 6 + 5] = tangentPositions[i].z;
 		}
 
+		
 
-		glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data) * (pointsBufferSize + tangeantLinesBufferSize), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
+		offset = pointsBufferSize + tangeantLinesBufferSize;
+
+		for (unsigned i = 0; i < lines.size(); i++)
+		{
+			g_vertex_buffer_data[offset + i * 3] = lines[i].x;
+			g_vertex_buffer_data[offset + i * 3 + 1] = lines[i].y;
+			g_vertex_buffer_data[offset + i * 3 + 2] = 1;// lines[i].z;
+		}
+
+		glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data) * (pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3)), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
 
 
 
@@ -362,6 +469,8 @@ int main() {
 		// Draw the triangle !
 		glDrawArrays(GL_POINTS, 0, pointsBufferSize / 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
 		glDrawArrays(GL_LINES, pointsBufferSize / 3, tangeantLinesBufferSize / 3);
+		glDrawArrays(GL_LINE_STRIP, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
+
 
 		glBindVertexArray(0);
 
