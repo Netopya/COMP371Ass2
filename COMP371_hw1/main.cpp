@@ -74,17 +74,6 @@ void keyPressed(GLFWwindow *_window, int key, int scancode, int action, int mods
 	return;
 }
 
-glm::vec3* myMat1x4Multiply(glm::vec4 &paramBasis, glm::mat3x4 &control)
-{
-	return new glm::vec3(glm::dot(paramBasis,(control)[0]), glm::dot(paramBasis,(control)[1]), glm::dot(paramBasis,(control)[2]));
-}
-
-glm::vec4* anotherFunkyM(glm::vec4 &param, glm::mat4 &basis)
-{
-	glm::mat4 tmp(glm::transpose(basis));
-	return new glm::vec4(glm::dot(param, tmp[0]), glm::dot(param, tmp[1]), glm::dot(param, tmp[2]), glm::dot(param, tmp[3]));
-}
-
 void mouseClick(GLFWwindow *_window, int button, int action, int mods)
 {
 	if (action != GLFW_PRESS)
@@ -122,6 +111,53 @@ void mousePositionCallback(GLFWwindow *_window, double xpos, double ypos)
 	//cout << vec3tostring(mousePosition) << endl;
 }
 
+void calculateSplines()
+{
+	lines.empty();
+
+	for (unsigned i = 0; i < tangentPositions.size() - 1; i++)
+	{
+		float controlValues[12] = {
+			pointPositions[i].x, pointPositions[i + 1].x, tangentPositions[i].x, tangentPositions[i + 1].x,
+			pointPositions[i].y, pointPositions[i + 1].y, tangentPositions[i].y, tangentPositions[i + 1].y,
+			pointPositions[i].z, pointPositions[i + 1].z, tangentPositions[i].z, tangentPositions[i + 1].z
+		};
+
+		glm::mat3x4 controlMatrix = glm::make_mat3x4(controlValues);
+
+		//glm::vec3* point1 = calculateSplinePoint(0, controlMatrix);
+		//lines.push_back(*point1);
+
+		subDivide(0, 1, controlMatrix, true);
+
+	}
+}
+
+void subDivide(float u1, float u2, glm::mat3x4 &controlMatrix, bool addFirstPoint)
+{
+	float umid = (u1 + u2) / 2;
+	glm::vec3* point1 = calculateSplinePoint(u1, controlMatrix);
+	glm::vec3* point2 = calculateSplinePoint(u2, controlMatrix);
+
+	if (addFirstPoint)
+	{
+		lines.push_back(*point1);
+	}
+
+	if (glm::length(glm::distance(*point1, *point2)) > 1.0f)
+	{
+		subDivide(u1, umid, controlMatrix, false);
+		subDivide(umid, u2, controlMatrix, true);
+	}
+
+	lines.push_back(*point2);
+}
+
+glm::vec3* calculateSplinePoint(float u, glm::mat3x4 &controlMatrix)
+{
+	glm::vec4 param(u*u*u, u*u, u, 1);
+	return new glm::vec3(param*glm::transpose(hermiteBasisMatrix)*controlMatrix);
+}
 
 bool initialize() {
 	/// Initialize GL context and O/S window using the GLFW helper library
@@ -354,8 +390,6 @@ int main() {
 				while (u <= 1)
 				{
 					glm::vec4 param(u*u*u, u*u, u, 1);
-					//glm::vec4 param(1, u, u*u, u*u*u);
-					glm::mat4 paramm(u*u*u, u*u, u, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 					/*
 					float controlValues[12] = {
@@ -366,19 +400,18 @@ int main() {
 					};
 					*/
 
+					
 					float controlValues[12] = {
 						pointPositions[i].x, pointPositions[i+1].x, tangentPositions[i].x, tangentPositions[i+1].x,
 						pointPositions[i].y, pointPositions[i+1].y, tangentPositions[i].y, tangentPositions[i+1].y,
 						pointPositions[i].z, pointPositions[i+1].z, tangentPositions[i].z, tangentPositions[i+1].z
 					};
-
+					
 
 					/*
 					float controlValues[8] = {
-						pointPositions[0].x, pointPositions[0].y,
-						pointPositions[1].x, pointPositions[1].y,
-						tangentPositions[0].x, tangentPositions[0].y,
-						tangentPositions[1].x, tangentPositions[1].y
+						pointPositions[i].x, pointPositions[i + 1].x, tangentPositions[i].x, tangentPositions[i + 1].x,
+						pointPositions[i].y, pointPositions[i + 1].y, tangentPositions[i].y, tangentPositions[i + 1].y
 					};
 					*/
 
@@ -386,41 +419,10 @@ int main() {
 					glm::mat3x4 controlMatrix = glm::make_mat3x4(controlValues);
 
 
-					/*
-					glm::mat3x4 controlMatrix(pointPositions[0].x, pointPositions[0].y, pointPositions[0].z,
-						pointPositions[1].x, pointPositions[1].y, pointPositions[1].z,
-						tangentPositions[0].x, tangentPositions[0].y, tangentPositions[0].z,
-						tangentPositions[1].x, tangentPositions[1].y, tangentPositions[1].z);
-					*/
-
-					//glm::mat4x3 controlMatrix;
-
-					//glm::mat3x4 controlMatrix(pointPositions[0], pointPositions[1], pointPositions[0], pointPositions[0])
-
-					//lines.push_back(glm::vec3(param*hermiteBasisMatrix*controlMatrix, 1));
-
-
-					//lines.push_back(*myMat1x4Multiply((param*glm::transpose(hermiteBasisMatrix)),controlMatrix));
-
-					/*
-					glm::vec4 tmp = *anotherFunkyM(param, hermiteBasisMatrix);
-
-					lines.push_back(*myMat1x4Multiply(tmp, controlMatrix));
-					*/
-
-					/*
-					glm::vec3 tmp(param*glm::transpose(hermiteBasisMatrix)*controlMatrix);
-
-					lines.push_back(glm::vec3(tmp.y / 2, tmp.x, tmp.z));
-					*/
-
 					lines.push_back(param*glm::transpose(hermiteBasisMatrix)*controlMatrix);
 
-					//lines.push_back(glm::transpose(controlMatrix*glm::transpose(hermiteBasisMatrix)*param));
 
-					u += 0.005f;
-
-
+					u += 0.005;
 				}
 			}
 		}
