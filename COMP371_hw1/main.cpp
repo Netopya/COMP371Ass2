@@ -32,7 +32,7 @@ GLuint shader_program = 0;
 GLuint view_matrix_id = 0;
 GLuint model_matrix_id = 0;
 GLuint proj_matrix_id = 0;
-
+GLuint is_triangle_id = 0;
 
 ///Transformations
 glm::mat4 proj_matrix;
@@ -321,6 +321,7 @@ GLuint loadShaders(std::string vertex_shader_path, std::string fragment_shader_p
 	view_matrix_id = glGetUniformLocation(ProgramID, "view_matrix");
 	model_matrix_id = glGetUniformLocation(ProgramID, "model_matrix");
 	proj_matrix_id = glGetUniformLocation(ProgramID, "proj_matrix");
+	is_triangle_id = glGetUniformLocation(ProgramID, "is_triangle");
 
 	return ProgramID;
 }
@@ -501,6 +502,7 @@ int main() {
 		glUniformMatrix4fv(proj_matrix_id, 1, GL_FALSE, glm::value_ptr(proj_matrix));
 		glUniformMatrix4fv(view_matrix_id, 1, GL_FALSE, glm::value_ptr(view_matrix));
 		glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, glm::value_ptr(model_matrix));
+		glUniform1i(is_triangle_id, 0);
 
 		glBindVertexArray(VAO);
 		// Draw the triangle !
@@ -528,20 +530,18 @@ int main() {
 			triangleModel = triangleModel * triangleModel2;
 			
 			
-
+			glUniform1i(is_triangle_id, 1);
 			glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, glm::value_ptr(triangleModel));
 
 			glDrawArrays(GL_TRIANGLES, pointsBufferSize / 3 + tangeantLinesBufferSize / 3 + lines.size(), 3);
-		}	
-		
-		
-		
-		u += 0.005;
+			
+			u += 0.005;
 
-		if (u > 1)
-		{
-			u = 0;
-		}
+			if (u > 1)
+			{
+				u = 0;
+			}
+		}		
 
 
 		glBindVertexArray(0);
