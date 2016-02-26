@@ -10,4 +10,9 @@ void main () {
 	gl_Position = CTM * vec4 (in_Position, 1.0);
 
 	out_Color = vec3 (0.2,0.8,0.2);
+
+	if(in_Position.y >= -0.1 && in_Position.y <= 0)
+	{
+		out_Color = vec3 (0.2,1+(in_Position.y * 10),0.2);
+	}
 }

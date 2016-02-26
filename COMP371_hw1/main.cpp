@@ -56,7 +56,12 @@ vector<glm::vec3> tangentPositions;
 
 vector<glm::vec3> lines;
 
+vector<glm::mat3x4> controlMatrices;
+
 GLfloat* g_vertex_buffer_data;
+
+GLfloat triangleBuffer[9] = { 0,0,1,-0.05,-0.1,1,0.05,-0.1,1 };
+const int TRIANGLE_BUFFER_SIZE = 9;
 
 // Helper function to convert vec3's into a formatted string
 string vec3tostring(glm::vec3 vec)
@@ -150,6 +155,8 @@ void calculateSplines()
 		};
 
 		glm::mat3x4 controlMatrix = glm::make_mat3x4(controlValues);
+
+		controlMatrices.push_back(controlMatrix);
 
 		//glm::vec3* point1 = calculateSplinePoint(0, controlMatrix);
 		//lines.push_back(*point1);
@@ -364,7 +371,7 @@ int main() {
 	tangentPositions.push_back(glm::vec3(0.5, 0.5, 1));
 	*/
 
-
+	float u = 0;
 	while (!glfwWindowShouldClose(window)) {
 		// wipe the drawing surface clear
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -437,7 +444,7 @@ int main() {
 
 		int pointsBufferSize = (pointPositions.size() + tangentPositions.size()) * 3;
 		int tangeantLinesBufferSize = tangentPositions.size() * 2 * 3;
-		g_vertex_buffer_data = new GLfloat[pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3)];
+		g_vertex_buffer_data = new GLfloat[pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3) + TRIANGLE_BUFFER_SIZE];
 
 		for (unsigned i = 0; i < pointPositions.size(); i++)
 		{
@@ -477,7 +484,15 @@ int main() {
 			g_vertex_buffer_data[offset + i * 3 + 2] = 1;// lines[i].z;
 		}
 
-		glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data) * (pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3)), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
+		offset += lines.size() * 3;
+
+		for (int i = 0; i < TRIANGLE_BUFFER_SIZE; i++)
+		{
+			g_vertex_buffer_data[offset + i] = triangleBuffer[i];
+		}
+
+
+		glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data) * (pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3) + TRIANGLE_BUFFER_SIZE), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
 
 
 
@@ -492,6 +507,41 @@ int main() {
 		glDrawArrays(GL_POINTS, 0, pointsBufferSize / 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
 		glDrawArrays(GL_LINES, pointsBufferSize / 3, tangeantLinesBufferSize / 3);
 		glDrawArrays(GL_LINE_STRIP, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
+		
+		
+		if (controlMatrices.size() > 0)
+		{
+		
+			glm::vec3 trianglePosition = glm::vec4(u*u*u, u*u, u, 1)*glm::transpose(hermiteBasisMatrix)*controlMatrices[0];
+			trianglePosition.z = 0;
+			glm::vec3 triangleAngle = glm::vec4(3 * u*u, 2 * u, 1, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrices[0];
+			triangleAngle.z = 0;
+			float hyp = sqrt(triangleAngle[0] * triangleAngle[0] + triangleAngle[1] * triangleAngle[1]);
+			float msin = triangleAngle[1] / hyp;
+			float cos = triangleAngle[0] / hyp;
+			glm::mat2 triangleRotation(msin, -1.0f * cos, cos, msin);
+			glm::mat4 triangleModel2(model_matrix * glm::mat4(triangleRotation));
+			triangleModel2[2].z = 1;
+			triangleModel2[3].w = 1;
+			glm::mat4 triangleModel = glm::translate(model_matrix, trianglePosition);
+			//glm::mat4 triangleModel = glm::rotate(model_matrix, atan2(triangleAngle[1], triangleAngle[0]) + (float)(-1.0f * M_PI / 2.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+			triangleModel = triangleModel * triangleModel2;
+			
+			
+
+			glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, glm::value_ptr(triangleModel));
+
+			glDrawArrays(GL_TRIANGLES, pointsBufferSize / 3 + tangeantLinesBufferSize / 3 + lines.size(), 3);
+		}	
+		
+		
+		
+		u += 0.005;
+
+		if (u > 1)
+		{
+			u = 0;
+		}
 
 
 		glBindVertexArray(0);
