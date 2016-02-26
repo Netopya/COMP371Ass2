@@ -111,6 +111,32 @@ void mousePositionCallback(GLFWwindow *_window, double xpos, double ypos)
 	//cout << vec3tostring(mousePosition) << endl;
 }
 
+glm::vec3* calculateSplinePoint(float u, glm::mat3x4 &controlMatrix)
+{
+	glm::vec4 param(u*u*u, u*u, u, 1);
+	return new glm::vec3(param*glm::transpose(hermiteBasisMatrix)*controlMatrix);
+}
+
+void subDivide(float u1, float u2, glm::mat3x4 &controlMatrix, bool addFirstPoint)
+{
+	float umid = (u1 + u2) / 2;
+	glm::vec3* point1 = calculateSplinePoint(u1, controlMatrix);
+	glm::vec3* point2 = calculateSplinePoint(u2, controlMatrix);
+
+	if (addFirstPoint)
+	{
+		lines.push_back(*point1);
+	}
+
+	if (glm::length(glm::distance(*point1, *point2)) > 0.01f)
+	{
+		subDivide(u1, umid, controlMatrix, false);
+		subDivide(umid, u2, controlMatrix, true);
+	}
+
+	lines.push_back(*point2);
+}
+
 void calculateSplines()
 {
 	lines.empty();
@@ -128,36 +154,11 @@ void calculateSplines()
 		//glm::vec3* point1 = calculateSplinePoint(0, controlMatrix);
 		//lines.push_back(*point1);
 
-		subDivide(0, 1, controlMatrix, true);
+		subDivide(0.0f, 1.0f, controlMatrix, true);
 
 	}
 }
 
-void subDivide(float u1, float u2, glm::mat3x4 &controlMatrix, bool addFirstPoint)
-{
-	float umid = (u1 + u2) / 2;
-	glm::vec3* point1 = calculateSplinePoint(u1, controlMatrix);
-	glm::vec3* point2 = calculateSplinePoint(u2, controlMatrix);
-
-	if (addFirstPoint)
-	{
-		lines.push_back(*point1);
-	}
-
-	if (glm::length(glm::distance(*point1, *point2)) > 1.0f)
-	{
-		subDivide(u1, umid, controlMatrix, false);
-		subDivide(umid, u2, controlMatrix, true);
-	}
-
-	lines.push_back(*point2);
-}
-
-glm::vec3* calculateSplinePoint(float u, glm::mat3x4 &controlMatrix)
-{
-	glm::vec4 param(u*u*u, u*u, u, 1);
-	return new glm::vec3(param*glm::transpose(hermiteBasisMatrix)*controlMatrix);
-}
 
 bool initialize() {
 	/// Initialize GL context and O/S window using the GLFW helper library
@@ -384,6 +385,9 @@ int main() {
 
 			lines.empty();
 
+			calculateSplines();
+
+			/*
 			for (unsigned i = 0; i < tangentPositions.size() - 1; i++)
 			{
 				float u = 0;
@@ -399,7 +403,7 @@ int main() {
 						tangentPositions[1].x, tangentPositions[1].y, tangentPositions[1].z
 					};
 					*/
-
+			/*
 					
 					float controlValues[12] = {
 						pointPositions[i].x, pointPositions[i+1].x, tangentPositions[i].x, tangentPositions[i+1].x,
@@ -416,6 +420,7 @@ int main() {
 					*/
 
 					//glm::mat2x4 controlMatrix = glm::make_mat2x4(controlValues);
+			/*
 					glm::mat3x4 controlMatrix = glm::make_mat3x4(controlValues);
 
 
@@ -425,6 +430,7 @@ int main() {
 					u += 0.005;
 				}
 			}
+			*/
 		}
 
 		delete g_vertex_buffer_data;
@@ -485,7 +491,7 @@ int main() {
 		// Draw the triangle !
 		glDrawArrays(GL_POINTS, 0, pointsBufferSize / 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
 		glDrawArrays(GL_LINES, pointsBufferSize / 3, tangeantLinesBufferSize / 3);
-		glDrawArrays(GL_POINTS, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
+		glDrawArrays(GL_LINE_STRIP, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
 
 
 		glBindVertexArray(0);
