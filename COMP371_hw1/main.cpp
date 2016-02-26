@@ -373,6 +373,8 @@ int main() {
 	*/
 
 	float u = 0;
+	int controlIndex = 0;
+
 	while (!glfwWindowShouldClose(window)) {
 		// wipe the drawing surface clear
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -511,12 +513,12 @@ int main() {
 		glDrawArrays(GL_LINE_STRIP, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
 		
 		
+		
 		if (controlMatrices.size() > 0)
 		{
-		
-			glm::vec3 trianglePosition = glm::vec4(u*u*u, u*u, u, 1)*glm::transpose(hermiteBasisMatrix)*controlMatrices[0];
+			glm::vec3 trianglePosition = glm::vec4(u*u*u, u*u, u, 1)*glm::transpose(hermiteBasisMatrix)*controlMatrices[controlIndex];
 			trianglePosition.z = 0;
-			glm::vec3 triangleAngle = glm::vec4(3 * u*u, 2 * u, 1, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrices[0];
+			glm::vec3 triangleAngle = glm::vec4(3 * u*u, 2 * u, 1, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrices[controlIndex];
 			triangleAngle.z = 0;
 			float hyp = sqrt(triangleAngle[0] * triangleAngle[0] + triangleAngle[1] * triangleAngle[1]);
 			float msin = triangleAngle[1] / hyp;
@@ -528,20 +530,25 @@ int main() {
 			glm::mat4 triangleModel = glm::translate(model_matrix, trianglePosition);
 			//glm::mat4 triangleModel = glm::rotate(model_matrix, atan2(triangleAngle[1], triangleAngle[0]) + (float)(-1.0f * M_PI / 2.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			triangleModel = triangleModel * triangleModel2;
-			
-			
+
+
 			glUniform1i(is_triangle_id, 1);
 			glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, glm::value_ptr(triangleModel));
 
 			glDrawArrays(GL_TRIANGLES, pointsBufferSize / 3 + tangeantLinesBufferSize / 3 + lines.size(), 3);
-			
+
 			u += 0.005;
 
 			if (u > 1)
 			{
 				u = 0;
+				controlIndex++;
+				if (controlIndex == controlMatrices.size())
+				{
+					controlIndex = 0;
+				}
 			}
-		}		
+		}
 
 
 		glBindVertexArray(0);
