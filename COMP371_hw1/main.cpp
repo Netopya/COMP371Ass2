@@ -429,12 +429,12 @@ int main() {
 	bool first = false;
 
 	
-	
+	/*
 	pointPositions.push_back(glm::vec3(0, 0, 1));
 	pointPositions.push_back(glm::vec3(0.5, 0, 1));
 	tangentPositions.push_back(glm::vec3(0, 0.5, 1));
 	tangentPositions.push_back(glm::vec3(0.5, 0.5, 1));
-	
+	*/
 
 	float u = 0;
 	int controlIndex = 0;
@@ -452,7 +452,7 @@ int main() {
 
 		//model_matrix = glm::translate(oriModel, mousePosition);
 
-		// Depending on the pressed arrow key, rotate the model relative to the real world up direction
+		// 
 		switch (arrowKey)
 		{
 		case ArrowKeys::none:
@@ -615,20 +615,20 @@ int main() {
 			float hyp = sqrt(triangleAngle[0] * triangleAngle[0] + triangleAngle[1] * triangleAngle[1]);
 			float msin = triangleAngle[1] / hyp;
 			float cos = triangleAngle[0] / hyp;
-			//glm::mat2 triangleRotation(msin, -1.0f * cos, cos, msin);
-			glm::mat2 triangleRotation(cos, -1.0f * msin, msin, cos);
+			glm::mat2 triangleRotation(msin, -1.0f * cos, cos, msin);
+			//glm::mat2 triangleRotation(cos, -1.0f * msin, msin, cos);
 			glm::mat4 triangleModel2(model_matrix * glm::mat4(triangleRotation));
 			triangleModel2[2].z = 1;
 			triangleModel2[3].w = 1;
 			glm::mat4 triangleModel = glm::translate(model_matrix, trianglePosition);
-			triangleModel = glm::rotate(triangleModel, atan2(triangleAngle[1], triangleAngle[0]), glm::vec3(0.0f, 0.0f, 1.0f));
+			//triangleModel = glm::rotate(triangleModel, atan2(triangleAngle[1], triangleAngle[0]), glm::vec3(0.0f, 0.0f, 1.0f));
 
-			float curvature = calculateCurvature(u, controlMatrices[controlIndex]);
+			//float curvature = calculateCurvature(u, controlMatrices[controlIndex]);
 
-			cout << curvature << endl;
+			//cout << curvature << endl;
 
-			triangleModel = glm::scale(triangleModel, glm::vec3(1, curvature, 1));
-			//triangleModel = triangleModel * triangleModel2;
+			//triangleModel = glm::scale(triangleModel, glm::vec3(1, curvature, 1));
+			triangleModel = triangleModel * triangleModel2;
 
 
 			glUniform1i(is_triangle_id, 1);
