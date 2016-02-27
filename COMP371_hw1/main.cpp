@@ -63,6 +63,13 @@ GLfloat* g_vertex_buffer_data;
 GLfloat triangleBuffer[9] = { 0,0,1,-0.05,-0.1,1,0.05,-0.1,1 };
 const int TRIANGLE_BUFFER_SIZE = 9;
 
+// enums to hold keyboard and mouse input
+enum ArrowKeys { none, left, right, up, down };
+ArrowKeys arrowKey;
+
+enum ViewMode { points, splines };
+ViewMode viewMode = ViewMode::splines;
+
 // Helper function to convert vec3's into a formatted string
 string vec3tostring(glm::vec3 vec)
 {
@@ -73,9 +80,35 @@ string vec3tostring(glm::vec3 vec)
 
 ///Handle the keyboard input
 void keyPressed(GLFWwindow *_window, int key, int scancode, int action, int mods) {
-	switch (key) {
-	default: break;
+	if (action == GLFW_RELEASE)
+	{
+		arrowKey = ArrowKeys::none;
 	}
+	else if (action == GLFW_PRESS)
+	{
+		switch (key) {
+		case GLFW_KEY_LEFT:
+			arrowKey = ArrowKeys::left;
+			break;
+		case GLFW_KEY_RIGHT:
+			arrowKey = ArrowKeys::right;
+			break;
+		case GLFW_KEY_UP:
+			arrowKey = ArrowKeys::up;
+			break;
+		case GLFW_KEY_DOWN:
+			arrowKey = ArrowKeys::down;
+			break;
+		case GLFW_KEY_P:
+			viewMode = ViewMode::points;
+			break;
+		case GLFW_KEY_L:
+			viewMode = ViewMode::splines;
+			break;
+		default: break;
+		}
+	}
+
 	return;
 }
 
@@ -388,6 +421,26 @@ int main() {
 
 		//model_matrix = glm::translate(oriModel, mousePosition);
 
+		// Depending on the pressed arrow key, rotate the model relative to the real world up direction
+		switch (arrowKey)
+		{
+		case ArrowKeys::none:
+			break;
+		case ArrowKeys::left:
+			view_matrix = glm::translate(view_matrix, glm::vec3(-0.01f, 0.0f, 0.0f));
+			break;
+		case ArrowKeys::right:
+			view_matrix = glm::translate(view_matrix, glm::vec3(0.01f, 0.0f, 0.0f));
+			break;
+		case ArrowKeys::up:
+			view_matrix = glm::translate(view_matrix, glm::vec3(0.0f, 0.01f, 0.0f));
+			break;
+		case ArrowKeys::down:
+			view_matrix = glm::translate(view_matrix, glm::vec3(0.0f, -0.01f, 0.0f));
+			break;
+		default:
+			break;
+		}
 		
 		if (tangentPositions.size() > 1 && tangentPositions.size() == pointPositions.size() && !first)
 		{
@@ -510,7 +563,15 @@ int main() {
 		// Draw the triangle !
 		glDrawArrays(GL_POINTS, 0, pointsBufferSize / 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
 		glDrawArrays(GL_LINES, pointsBufferSize / 3, tangeantLinesBufferSize / 3);
-		glDrawArrays(GL_LINE_STRIP, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
+
+		if (viewMode == ViewMode::splines)
+		{
+			glDrawArrays(GL_LINE_STRIP, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
+		}
+		else {
+			glDrawArrays(GL_POINTS, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
+		}
+		
 		
 		
 		
