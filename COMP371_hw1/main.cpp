@@ -149,6 +149,16 @@ void mousePositionCallback(GLFWwindow *_window, double xpos, double ypos)
 	//cout << vec3tostring(mousePosition) << endl;
 }
 
+// Handle the window resizing, set the viewport and recompute the perspective
+void windowResized(GLFWwindow *windows, int width, int height)
+{
+	glViewport(0, 0, width, height);
+	float difference = (float)width * 2.0f / (float)height;
+	difference /= 2.0f;
+
+	proj_matrix = glm::ortho(1.0f - difference, 1.0f + difference, -1.0f, 1.0f);
+}
+
 glm::vec3* calculateSplinePoint(float u, glm::mat3x4 &controlMatrix)
 {
 	glm::vec4 param(u*u*u, u*u, u, 1);
@@ -226,6 +236,7 @@ bool initialize() {
 	glfwSetKeyCallback(window, keyPressed);
 	glfwSetMouseButtonCallback(window, mouseClick);
 	glfwSetCursorPosCallback(window, mousePositionCallback);
+	glfwSetWindowSizeCallback(window, windowResized);
 
 	glfwMakeContextCurrent(window);
 
