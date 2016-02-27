@@ -144,7 +144,12 @@ void mousePositionCallback(GLFWwindow *_window, double xpos, double ypos)
 	int w, h;
 	glfwGetWindowSize(_window, &w, &h);
 	mousePosition = glm::unProject(glm::vec3((float)xpos, (float)ypos, 0.0f), model_matrix, proj_matrix, glm::vec4(0, 0, w, h));
+	//mousePosition *= glm::inverse(view_matrix);
 	mousePosition.y = -mousePosition.y;
+
+	// Offset by camera position
+	mousePosition.x -= view_matrix[3].x;
+	mousePosition.y -= view_matrix[3].y;
 
 	//cout << vec3tostring(mousePosition) << endl;
 }
