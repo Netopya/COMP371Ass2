@@ -170,6 +170,7 @@ glm::vec3* calculateSplinePoint(float u, glm::mat3x4 &controlMatrix)
 	return new glm::vec3(param*glm::transpose(hermiteBasisMatrix)*controlMatrix);
 }
 
+// Based on https://www.youtube.com/watch?v=T143lv8aKDU
 float calculateCurvature(float u, glm::mat3x4 &controlMatrix)
 {
 	glm::vec3 velocity(glm::vec4(3 * u*u, 2 * u, 1, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrix);
