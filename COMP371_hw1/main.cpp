@@ -170,9 +170,20 @@ glm::vec3* calculateSplinePoint(float u, glm::mat3x4 &controlMatrix)
 	return new glm::vec3(param*glm::transpose(hermiteBasisMatrix)*controlMatrix);
 }
 
+float calculateCurvature(float u, glm::mat3x4 &controlMatrix)
+{
+	glm::vec3 velocity(glm::vec4(3 * u*u, 2 * u, 1, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrix);
+	glm::vec3 acceleration(glm::vec4(6 * u, 2, 0, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrix);
+
+	//return glm::length(glm::cross(velocity, acceleration)) / pow(glm::length(velocity), 3);
+
+	float mv = glm::length(velocity);
+	return glm::length(glm::cross(velocity, acceleration)) / (mv * mv * mv);
+}
+
 void subDivide(float u1, float u2, glm::mat3x4 &controlMatrix, bool addFirstPoint)
 {
-	float umid = (u1 + u2) / 2;
+	float umid = (u1 + u2) / 2.0f;
 	glm::vec3* point1 = calculateSplinePoint(u1, controlMatrix);
 	glm::vec3* point2 = calculateSplinePoint(u2, controlMatrix);
 
@@ -181,7 +192,10 @@ void subDivide(float u1, float u2, glm::mat3x4 &controlMatrix, bool addFirstPoin
 		lines.push_back(*point1);
 	}
 
-	if (glm::length(glm::distance(*point1, *point2)) > 0.01f)
+	float curvature = calculateCurvature((u1 + umid) / 2, controlMatrix);
+	//cout << "at:" << umid << " between " << u1 << " and " << u2 << " curve is: " << curvature << " flip? " << addFirstPoint << endl;
+	//if (glm::length(glm::distance(*point1, *point2)) > 0.01f)
+	if(curvature > 1.0f && glm::length(glm::distance(*point1, *point2)) > 0.05f)
 	{
 		subDivide(u1, umid, controlMatrix, false);
 		subDivide(umid, u2, controlMatrix, true);
@@ -209,7 +223,8 @@ void calculateSplines()
 		//glm::vec3* point1 = calculateSplinePoint(0, controlMatrix);
 		//lines.push_back(*point1);
 
-		subDivide(0.0f, 1.0f, controlMatrix, true);
+		subDivide(0.0f, 0.5f, controlMatrix, true);
+		subDivide(0.5f, 1.0f, controlMatrix, true);
 
 	}
 }
@@ -414,12 +429,12 @@ int main() {
 	bool first = false;
 
 	
-	/*
+	
 	pointPositions.push_back(glm::vec3(0, 0, 1));
 	pointPositions.push_back(glm::vec3(0.5, 0, 1));
 	tangentPositions.push_back(glm::vec3(0, 0.5, 1));
 	tangentPositions.push_back(glm::vec3(0.5, 0.5, 1));
-	*/
+	
 
 	float u = 0;
 	int controlIndex = 0;
@@ -600,13 +615,20 @@ int main() {
 			float hyp = sqrt(triangleAngle[0] * triangleAngle[0] + triangleAngle[1] * triangleAngle[1]);
 			float msin = triangleAngle[1] / hyp;
 			float cos = triangleAngle[0] / hyp;
-			glm::mat2 triangleRotation(msin, -1.0f * cos, cos, msin);
+			//glm::mat2 triangleRotation(msin, -1.0f * cos, cos, msin);
+			glm::mat2 triangleRotation(cos, -1.0f * msin, msin, cos);
 			glm::mat4 triangleModel2(model_matrix * glm::mat4(triangleRotation));
 			triangleModel2[2].z = 1;
 			triangleModel2[3].w = 1;
 			glm::mat4 triangleModel = glm::translate(model_matrix, trianglePosition);
-			//glm::mat4 triangleModel = glm::rotate(model_matrix, atan2(triangleAngle[1], triangleAngle[0]) + (float)(-1.0f * M_PI / 2.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-			triangleModel = triangleModel * triangleModel2;
+			triangleModel = glm::rotate(triangleModel, atan2(triangleAngle[1], triangleAngle[0]), glm::vec3(0.0f, 0.0f, 1.0f));
+
+			float curvature = calculateCurvature(u, controlMatrices[controlIndex]);
+
+			cout << curvature << endl;
+
+			triangleModel = glm::scale(triangleModel, glm::vec3(1, curvature, 1));
+			//triangleModel = triangleModel * triangleModel2;
 
 
 			glUniform1i(is_triangle_id, 1);
