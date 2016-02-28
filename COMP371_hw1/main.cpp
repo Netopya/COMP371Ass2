@@ -70,6 +70,9 @@ ArrowKeys arrowKey;
 enum ViewMode { points, splines };
 ViewMode viewMode = ViewMode::splines;
 
+bool enterPressed = false;
+bool splinesComputed = false;
+
 // Helper function to convert vec3's into a formatted string
 string vec3tostring(glm::vec3 vec)
 {
@@ -105,6 +108,11 @@ void keyPressed(GLFWwindow *_window, int key, int scancode, int action, int mods
 		case GLFW_KEY_L:
 			viewMode = ViewMode::splines;
 			break;
+		case GLFW_KEY_ENTER:
+			if (!splinesComputed)
+			{
+				enterPressed = true;
+			}
 		default: break;
 		}
 	}
@@ -474,14 +482,17 @@ int main() {
 			break;
 		}
 		
-		if (tangentPositions.size() > 1 && tangentPositions.size() == pointPositions.size() && !first)
+		if (tangentPositions.size() > 1 && tangentPositions.size() == pointPositions.size() && enterPressed)
 		{
+			enterPressed = false;
+
 			first = true;
 
 			lines.empty();
 
 			calculateSplines();
 
+			splinesComputed = true;
 			/*
 			for (unsigned i = 0; i < tangentPositions.size() - 1; i++)
 			{
