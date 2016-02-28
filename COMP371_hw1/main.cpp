@@ -72,6 +72,7 @@ ViewMode viewMode = ViewMode::splines;
 
 bool enterPressed = false;
 bool splinesComputed = false;
+bool backspacePressed = false;
 
 // Helper function to convert vec3's into a formatted string
 string vec3tostring(glm::vec3 vec)
@@ -113,6 +114,10 @@ void keyPressed(GLFWwindow *_window, int key, int scancode, int action, int mods
 			{
 				enterPressed = true;
 			}
+			break;
+		case GLFW_KEY_BACKSPACE:
+			backspacePressed = true;
+			break;
 		default: break;
 		}
 	}
@@ -215,7 +220,7 @@ void subDivide(float u1, float u2, glm::mat3x4 &controlMatrix, bool addFirstPoin
 
 void calculateSplines()
 {
-	lines.empty();
+	lines.clear();
 
 	for (unsigned i = 0; i < tangentPositions.size() - 1; i++)
 	{
@@ -297,6 +302,15 @@ bool cleanUp() {
 
 	// Close GL context and any other GLFW resources
 	glfwTerminate();
+
+	lines.clear();
+	pointPositions.clear();
+	tangentPositions.clear();
+	controlMatrices.clear();
+
+	enterPressed = false;
+	splinesComputed = false;
+	backspacePressed = false;
 
 	return true;
 }
@@ -402,274 +416,226 @@ GLuint loadShaders(std::string vertex_shader_path, std::string fragment_shader_p
 
 int main() {
 
-	
-
-	cout << "How many points would you like to enter?" << endl;
-	cin >> numberOfPoints;
+	while (true)
+	{
 
 
-	initialize();
 
-	///Load the shaders
-	shader_program = loadShaders("COMP371_hw1.vs", "COMP371_hw1.fs");
-
-	// This will identify our vertex buffer
-	GLuint vertexbuffer;
-
-	
-	// Generate 1 buffer, put the resulting identifier in vertexbuffer
-	glGenBuffers(1, &vertexbuffer);
-
-	// The following commands will talk about our 'vertexbuffer' buffer
-	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	// Give our vertices to OpenGL.
-	
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(
-		0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
-		3,                  // size
-		GL_FLOAT,           // type
-		GL_FALSE,           // normalized?
-		0,                  // stride
-		(void*)0            // array buffer offset
-		);
+		cout << "How many points would you like to enter?" << endl;
+		cin >> numberOfPoints;
 
 
-	bool first = false;
+		initialize();
 
-	
-	/*
-	pointPositions.push_back(glm::vec3(0, 0, 1));
-	pointPositions.push_back(glm::vec3(0.5, 0, 1));
-	tangentPositions.push_back(glm::vec3(0, 0.5, 1));
-	tangentPositions.push_back(glm::vec3(0.5, 0.5, 1));
-	*/
+		///Load the shaders
+		shader_program = loadShaders("COMP371_hw1.vs", "COMP371_hw1.fs");
 
-	float u = 0;
-	int controlIndex = 0;
+		// This will identify our vertex buffer
+		GLuint vertexbuffer;
 
-	while (!glfwWindowShouldClose(window)) {
-		// wipe the drawing surface clear
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glClearColor(0.1f, 0.2f, 0.2f, 1.0f);
-		glPointSize(point_size);
 
-		glUseProgram(shader_program);
+		// Generate 1 buffer, put the resulting identifier in vertexbuffer
+		glGenBuffers(1, &vertexbuffer);
 
-		//g_vertex_buffer_data[0] = mousePosition.x;
-		//g_vertex_buffer_data[1] = mousePosition.y;
+		// The following commands will talk about our 'vertexbuffer' buffer
+		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+		// Give our vertices to OpenGL.
 
-		//model_matrix = glm::translate(oriModel, mousePosition);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(
+			0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
+			3,                  // size
+			GL_FLOAT,           // type
+			GL_FALSE,           // normalized?
+			0,                  // stride
+			(void*)0            // array buffer offset
+			);
 
-		// 
-		switch (arrowKey)
-		{
-		case ArrowKeys::none:
-			break;
-		case ArrowKeys::left:
-			view_matrix = glm::translate(view_matrix, glm::vec3(-0.01f, 0.0f, 0.0f));
-			break;
-		case ArrowKeys::right:
-			view_matrix = glm::translate(view_matrix, glm::vec3(0.01f, 0.0f, 0.0f));
-			break;
-		case ArrowKeys::up:
-			view_matrix = glm::translate(view_matrix, glm::vec3(0.0f, 0.01f, 0.0f));
-			break;
-		case ArrowKeys::down:
-			view_matrix = glm::translate(view_matrix, glm::vec3(0.0f, -0.01f, 0.0f));
-			break;
-		default:
-			break;
-		}
-		
-		if (tangentPositions.size() > 1 && tangentPositions.size() == pointPositions.size() && enterPressed)
-		{
-			enterPressed = false;
+		/*
+		pointPositions.push_back(glm::vec3(0, 0, 1));
+		pointPositions.push_back(glm::vec3(0.5, 0, 1));
+		tangentPositions.push_back(glm::vec3(0, 0.5, 1));
+		tangentPositions.push_back(glm::vec3(0.5, 0.5, 1));
+		*/
 
-			first = true;
+		float u = 0;
+		int controlIndex = 0;
 
-			lines.empty();
+		while (!glfwWindowShouldClose(window) && !backspacePressed) {
+			// wipe the drawing surface clear
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClearColor(0.1f, 0.2f, 0.2f, 1.0f);
+			glPointSize(point_size);
 
-			calculateSplines();
+			glUseProgram(shader_program);
 
-			splinesComputed = true;
-			/*
-			for (unsigned i = 0; i < tangentPositions.size() - 1; i++)
+			//g_vertex_buffer_data[0] = mousePosition.x;
+			//g_vertex_buffer_data[1] = mousePosition.y;
+
+			//model_matrix = glm::translate(oriModel, mousePosition);
+
+			// 
+			switch (arrowKey)
 			{
-				float u = 0;
-				while (u <= 1)
+			case ArrowKeys::none:
+				break;
+			case ArrowKeys::left:
+				view_matrix = glm::translate(view_matrix, glm::vec3(-0.01f, 0.0f, 0.0f));
+				break;
+			case ArrowKeys::right:
+				view_matrix = glm::translate(view_matrix, glm::vec3(0.01f, 0.0f, 0.0f));
+				break;
+			case ArrowKeys::up:
+				view_matrix = glm::translate(view_matrix, glm::vec3(0.0f, 0.01f, 0.0f));
+				break;
+			case ArrowKeys::down:
+				view_matrix = glm::translate(view_matrix, glm::vec3(0.0f, -0.01f, 0.0f));
+				break;
+			default:
+				break;
+			}
+
+			if (tangentPositions.size() > 1 && tangentPositions.size() == pointPositions.size() && enterPressed)
+			{
+				enterPressed = false;
+
+				calculateSplines();
+
+				splinesComputed = true;
+			}
+
+			delete g_vertex_buffer_data;
+
+			int pointsBufferSize = (pointPositions.size() + tangentPositions.size()) * 3;
+			int tangeantLinesBufferSize = tangentPositions.size() * 2 * 3;
+			g_vertex_buffer_data = new GLfloat[pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3) + TRIANGLE_BUFFER_SIZE];
+
+			for (unsigned i = 0; i < pointPositions.size(); i++)
+			{
+				g_vertex_buffer_data[i * 3] = pointPositions[i].x;
+				g_vertex_buffer_data[i * 3 + 1] = pointPositions[i].y;
+				g_vertex_buffer_data[i * 3 + 2] = pointPositions[i].z;
+			}
+
+			int offset = pointPositions.size() * 3;
+
+			for (unsigned i = 0; i < tangentPositions.size(); i++)
+			{
+				g_vertex_buffer_data[offset + i * 3] = tangentPositions[i].x;
+				g_vertex_buffer_data[offset + i * 3 + 1] = tangentPositions[i].y;
+				g_vertex_buffer_data[offset + i * 3 + 2] = tangentPositions[i].z;
+			}
+
+
+			for (unsigned i = 0; i < tangentPositions.size(); i++)
+			{
+				g_vertex_buffer_data[pointsBufferSize + i * 6] = pointPositions[i].x;
+				g_vertex_buffer_data[pointsBufferSize + i * 6 + 1] = pointPositions[i].y;
+				g_vertex_buffer_data[pointsBufferSize + i * 6 + 2] = pointPositions[i].z;
+				g_vertex_buffer_data[pointsBufferSize + i * 6 + 3] = tangentPositions[i].x;
+				g_vertex_buffer_data[pointsBufferSize + i * 6 + 4] = tangentPositions[i].y;
+				g_vertex_buffer_data[pointsBufferSize + i * 6 + 5] = tangentPositions[i].z;
+			}
+
+
+
+			offset = pointsBufferSize + tangeantLinesBufferSize;
+
+			for (unsigned i = 0; i < lines.size(); i++)
+			{
+				g_vertex_buffer_data[offset + i * 3] = lines[i].x;
+				g_vertex_buffer_data[offset + i * 3 + 1] = lines[i].y;
+				g_vertex_buffer_data[offset + i * 3 + 2] = 1;// lines[i].z;
+			}
+
+			offset += lines.size() * 3;
+
+			for (int i = 0; i < TRIANGLE_BUFFER_SIZE; i++)
+			{
+				g_vertex_buffer_data[offset + i] = triangleBuffer[i];
+			}
+
+
+			glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data) * (pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3) + TRIANGLE_BUFFER_SIZE), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
+
+
+
+
+			//Pass the values of the three matrices to the shaders
+			glUniformMatrix4fv(proj_matrix_id, 1, GL_FALSE, glm::value_ptr(proj_matrix));
+			glUniformMatrix4fv(view_matrix_id, 1, GL_FALSE, glm::value_ptr(view_matrix));
+			glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, glm::value_ptr(model_matrix));
+			glUniform1i(is_triangle_id, 0);
+
+			glBindVertexArray(VAO);
+			// Draw the triangle !
+			glDrawArrays(GL_POINTS, 0, pointsBufferSize / 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
+			glDrawArrays(GL_LINES, pointsBufferSize / 3, tangeantLinesBufferSize / 3);
+
+			if (viewMode == ViewMode::splines)
+			{
+				glDrawArrays(GL_LINE_STRIP, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
+			}
+			else {
+				glDrawArrays(GL_POINTS, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
+			}
+
+
+
+
+			if (controlMatrices.size() > 0)
+			{
+				glm::vec3 trianglePosition = glm::vec4(u*u*u, u*u, u, 1)*glm::transpose(hermiteBasisMatrix)*controlMatrices[controlIndex];
+				trianglePosition.z = 0;
+				glm::vec3 triangleAngle = glm::vec4(3 * u*u, 2 * u, 1, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrices[controlIndex];
+				triangleAngle.z = 0;
+				float hyp = sqrt(triangleAngle[0] * triangleAngle[0] + triangleAngle[1] * triangleAngle[1]);
+				float msin = triangleAngle[1] / hyp;
+				float cos = triangleAngle[0] / hyp;
+				glm::mat2 triangleRotation(msin, -1.0f * cos, cos, msin);
+				//glm::mat2 triangleRotation(cos, -1.0f * msin, msin, cos);
+				glm::mat4 triangleModel2(model_matrix * glm::mat4(triangleRotation));
+				triangleModel2[2].z = 1;
+				triangleModel2[3].w = 1;
+				glm::mat4 triangleModel = glm::translate(model_matrix, trianglePosition);
+				//triangleModel = glm::rotate(triangleModel, atan2(triangleAngle[1], triangleAngle[0]), glm::vec3(0.0f, 0.0f, 1.0f));
+
+				//float curvature = calculateCurvature(u, controlMatrices[controlIndex]);
+
+				//cout << curvature << endl;
+
+				//triangleModel = glm::scale(triangleModel, glm::vec3(1, curvature, 1));
+				triangleModel = triangleModel * triangleModel2;
+
+
+				glUniform1i(is_triangle_id, 1);
+				glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, glm::value_ptr(triangleModel));
+
+				glDrawArrays(GL_TRIANGLES, pointsBufferSize / 3 + tangeantLinesBufferSize / 3 + lines.size(), 3);
+
+				u += 0.005;
+
+				if (u > 1)
 				{
-					glm::vec4 param(u*u*u, u*u, u, 1);
-
-					/*
-					float controlValues[12] = {
-						pointPositions[0].x, pointPositions[0].y, pointPositions[0].z,
-						pointPositions[1].x, pointPositions[1].y, pointPositions[1].z,
-						tangentPositions[0].x, tangentPositions[0].y, tangentPositions[0].z,
-						tangentPositions[1].x, tangentPositions[1].y, tangentPositions[1].z
-					};
-					*/
-			/*
-					
-					float controlValues[12] = {
-						pointPositions[i].x, pointPositions[i+1].x, tangentPositions[i].x, tangentPositions[i+1].x,
-						pointPositions[i].y, pointPositions[i+1].y, tangentPositions[i].y, tangentPositions[i+1].y,
-						pointPositions[i].z, pointPositions[i+1].z, tangentPositions[i].z, tangentPositions[i+1].z
-					};
-					
-
-					/*
-					float controlValues[8] = {
-						pointPositions[i].x, pointPositions[i + 1].x, tangentPositions[i].x, tangentPositions[i + 1].x,
-						pointPositions[i].y, pointPositions[i + 1].y, tangentPositions[i].y, tangentPositions[i + 1].y
-					};
-					*/
-
-					//glm::mat2x4 controlMatrix = glm::make_mat2x4(controlValues);
-			/*
-					glm::mat3x4 controlMatrix = glm::make_mat3x4(controlValues);
-
-
-					lines.push_back(param*glm::transpose(hermiteBasisMatrix)*controlMatrix);
-
-
-					u += 0.005;
+					u = 0;
+					controlIndex++;
+					if (controlIndex == controlMatrices.size())
+					{
+						controlIndex = 0;
+					}
 				}
 			}
-			*/
+
+
+			glBindVertexArray(0);
+
+			// update other events like input handling
+			glfwPollEvents();
+			// put the stuff we've been drawing onto the display
+			glfwSwapBuffers(window);
 		}
 
-		delete g_vertex_buffer_data;
-
-		int pointsBufferSize = (pointPositions.size() + tangentPositions.size()) * 3;
-		int tangeantLinesBufferSize = tangentPositions.size() * 2 * 3;
-		g_vertex_buffer_data = new GLfloat[pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3) + TRIANGLE_BUFFER_SIZE];
-
-		for (unsigned i = 0; i < pointPositions.size(); i++)
-		{
-			g_vertex_buffer_data[i * 3] = pointPositions[i].x;
-			g_vertex_buffer_data[i * 3 + 1] = pointPositions[i].y;
-			g_vertex_buffer_data[i * 3 + 2] = pointPositions[i].z;
-		}
-
-		int offset = pointPositions.size() * 3;
-
-		for (unsigned i = 0; i < tangentPositions.size(); i++)
-		{
-			g_vertex_buffer_data[offset + i * 3] = tangentPositions[i].x;
-			g_vertex_buffer_data[offset + i * 3 + 1] = tangentPositions[i].y;
-			g_vertex_buffer_data[offset + i * 3 + 2] = tangentPositions[i].z;
-		}
-
-		
-		for (unsigned i = 0; i < tangentPositions.size(); i++)
-		{
-			g_vertex_buffer_data[pointsBufferSize + i * 6] = pointPositions[i].x;
-			g_vertex_buffer_data[pointsBufferSize + i * 6 + 1] = pointPositions[i].y;
-			g_vertex_buffer_data[pointsBufferSize + i * 6 + 2] = pointPositions[i].z;
-			g_vertex_buffer_data[pointsBufferSize + i * 6 + 3] = tangentPositions[i].x;
-			g_vertex_buffer_data[pointsBufferSize + i * 6 + 4] = tangentPositions[i].y;
-			g_vertex_buffer_data[pointsBufferSize + i * 6 + 5] = tangentPositions[i].z;
-		}
-
-		
-
-		offset = pointsBufferSize + tangeantLinesBufferSize;
-
-		for (unsigned i = 0; i < lines.size(); i++)
-		{
-			g_vertex_buffer_data[offset + i * 3] = lines[i].x;
-			g_vertex_buffer_data[offset + i * 3 + 1] = lines[i].y;
-			g_vertex_buffer_data[offset + i * 3 + 2] = 1;// lines[i].z;
-		}
-
-		offset += lines.size() * 3;
-
-		for (int i = 0; i < TRIANGLE_BUFFER_SIZE; i++)
-		{
-			g_vertex_buffer_data[offset + i] = triangleBuffer[i];
-		}
-
-
-		glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data) * (pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3) + TRIANGLE_BUFFER_SIZE), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
-
-
-
-
-		//Pass the values of the three matrices to the shaders
-		glUniformMatrix4fv(proj_matrix_id, 1, GL_FALSE, glm::value_ptr(proj_matrix));
-		glUniformMatrix4fv(view_matrix_id, 1, GL_FALSE, glm::value_ptr(view_matrix));
-		glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, glm::value_ptr(model_matrix));
-		glUniform1i(is_triangle_id, 0);
-
-		glBindVertexArray(VAO);
-		// Draw the triangle !
-		glDrawArrays(GL_POINTS, 0, pointsBufferSize / 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
-		glDrawArrays(GL_LINES, pointsBufferSize / 3, tangeantLinesBufferSize / 3);
-
-		if (viewMode == ViewMode::splines)
-		{
-			glDrawArrays(GL_LINE_STRIP, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
-		}
-		else {
-			glDrawArrays(GL_POINTS, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
-		}
-		
-		
-		
-		
-		if (controlMatrices.size() > 0)
-		{
-			glm::vec3 trianglePosition = glm::vec4(u*u*u, u*u, u, 1)*glm::transpose(hermiteBasisMatrix)*controlMatrices[controlIndex];
-			trianglePosition.z = 0;
-			glm::vec3 triangleAngle = glm::vec4(3 * u*u, 2 * u, 1, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrices[controlIndex];
-			triangleAngle.z = 0;
-			float hyp = sqrt(triangleAngle[0] * triangleAngle[0] + triangleAngle[1] * triangleAngle[1]);
-			float msin = triangleAngle[1] / hyp;
-			float cos = triangleAngle[0] / hyp;
-			glm::mat2 triangleRotation(msin, -1.0f * cos, cos, msin);
-			//glm::mat2 triangleRotation(cos, -1.0f * msin, msin, cos);
-			glm::mat4 triangleModel2(model_matrix * glm::mat4(triangleRotation));
-			triangleModel2[2].z = 1;
-			triangleModel2[3].w = 1;
-			glm::mat4 triangleModel = glm::translate(model_matrix, trianglePosition);
-			//triangleModel = glm::rotate(triangleModel, atan2(triangleAngle[1], triangleAngle[0]), glm::vec3(0.0f, 0.0f, 1.0f));
-
-			//float curvature = calculateCurvature(u, controlMatrices[controlIndex]);
-
-			//cout << curvature << endl;
-
-			//triangleModel = glm::scale(triangleModel, glm::vec3(1, curvature, 1));
-			triangleModel = triangleModel * triangleModel2;
-
-
-			glUniform1i(is_triangle_id, 1);
-			glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, glm::value_ptr(triangleModel));
-
-			glDrawArrays(GL_TRIANGLES, pointsBufferSize / 3 + tangeantLinesBufferSize / 3 + lines.size(), 3);
-
-			u += 0.005;
-
-			if (u > 1)
-			{
-				u = 0;
-				controlIndex++;
-				if (controlIndex == controlMatrices.size())
-				{
-					controlIndex = 0;
-				}
-			}
-		}
-
-
-		glBindVertexArray(0);
-
-		// update other events like input handling
-		glfwPollEvents();
-		// put the stuff we've been drawing onto the display
-		glfwSwapBuffers(window);
+		cleanUp();
 	}
-
-	cleanUp();
 	return 0;
 }
