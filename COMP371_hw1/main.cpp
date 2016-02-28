@@ -2,7 +2,7 @@
 	COMP 371 - Assignment 2
 	Michael Bilinsky 26992358
 
-	An app that allows to the user to specify points and their tangeants, then
+	An app that allows the user to specify points and their tangeants, then
 	calculates hermite splines and animates a triangle along the splines
 
 */
