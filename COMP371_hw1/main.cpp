@@ -1,3 +1,12 @@
+/*
+	COMP 371 - Assignment 2
+	Michael Bilinsky 26992358
+
+	An app that allows to the user to specify points and their tangeants, then
+	calculates hermite splines and animates a triangle along the splines
+
+*/
+
 #include "glew.h"		// include GL Extension Wrangler
 
 #include "glfw3.h"  // include GLFW helper library
@@ -39,6 +48,7 @@ glm::mat4 proj_matrix;
 glm::mat4 view_matrix;
 glm::mat4 model_matrix;
 
+// Hermite Basis matrix
 float hermiteBasis[16] = {2, -2, 1, 1, -3, 3, -2, -1, 0, 0, 1, 0, 1, 0, 0, 0};
 glm::mat4 hermiteBasisMatrix;
 
@@ -46,20 +56,28 @@ GLuint VBO, VAO, EBO;
 
 GLfloat point_size = 3.0f;
 
+// Initial width and height
 const GLuint WIDTH = 800, HEIGHT = 600;
+const float CAMERA_MOVE_SPEED = 0.01;
+const float TRIANGLE_SPLINE_FOLLOW_SPEED = 0.005;
 
 glm::vec3 mousePosition;
 
 int numberOfPoints;
+
+// The positions of the points and the tangeant points
 vector<glm::vec3> pointPositions;
 vector<glm::vec3> tangentPositions;
 
+// The points making up the splines
 vector<glm::vec3> lines;
 
+// The control matrices of all the splines
 vector<glm::mat3x4> controlMatrices;
 
 GLfloat* g_vertex_buffer_data;
 
+// The triangle to be drawn along a spline
 GLfloat triangleBuffer[9] = { 0,0,1,-0.05,-0.1,1,0.05,-0.1,1 };
 const int TRIANGLE_BUFFER_SIZE = 9;
 
@@ -125,6 +143,7 @@ void keyPressed(GLFWwindow *_window, int key, int scancode, int action, int mods
 	return;
 }
 
+// Handle mouse click
 void mouseClick(GLFWwindow *_window, int button, int action, int mods)
 {
 	if (action != GLFW_PRESS)
@@ -132,6 +151,7 @@ void mouseClick(GLFWwindow *_window, int button, int action, int mods)
 		return;
 	}
 
+	// Fill up the point and tangeant point arrays
 	if (pointPositions.size() < numberOfPoints)
 	{
 		pointPositions.push_back(glm::vec3(mousePosition));
@@ -151,20 +171,19 @@ void mouseClick(GLFWwindow *_window, int button, int action, int mods)
 	cout << endl;
 }
 
+// Store the mouse's position when it moves on the screen
 void mousePositionCallback(GLFWwindow *_window, double xpos, double ypos)
 {
-	//cout << "x: " << xpos << " - y: " << ypos << endl;
 	int w, h;
 	glfwGetWindowSize(_window, &w, &h);
+	
+	// Calculate the mouse's position relative to world space from screen coordinates
 	mousePosition = glm::unProject(glm::vec3((float)xpos, (float)ypos, 0.0f), model_matrix, proj_matrix, glm::vec4(0, 0, w, h));
-	//mousePosition *= glm::inverse(view_matrix);
 	mousePosition.y = -mousePosition.y;
 
 	// Offset by camera position
 	mousePosition.x -= view_matrix[3].x;
 	mousePosition.y -= view_matrix[3].y;
-
-	//cout << vec3tostring(mousePosition) << endl;
 }
 
 // Handle the window resizing, set the viewport and recompute the perspective
@@ -177,6 +196,7 @@ void windowResized(GLFWwindow *windows, int width, int height)
 	proj_matrix = glm::ortho(1.0f - difference, 1.0f + difference, -1.0f, 1.0f);
 }
 
+// Calculate a point along a hermite spline based on the spline's control matrix
 glm::vec3* calculateSplinePoint(float u, glm::mat3x4 &controlMatrix)
 {
 	glm::vec4 param(u*u*u, u*u, u, 1);
@@ -186,10 +206,10 @@ glm::vec3* calculateSplinePoint(float u, glm::mat3x4 &controlMatrix)
 // Based on https://www.youtube.com/watch?v=T143lv8aKDU
 float calculateCurvature(float u, glm::mat3x4 &controlMatrix)
 {
-	glm::vec3 velocity(glm::vec4(3 * u*u, 2 * u, 1, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrix);
-	glm::vec3 acceleration(glm::vec4(6 * u, 2, 0, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrix);
+	// Calculate the curvature based on the formula K = ||r'(t) X r"(t)|| / ||r'(t)||^3
 
-	//return glm::length(glm::cross(velocity, acceleration)) / pow(glm::length(velocity), 3);
+	glm::vec3 velocity(glm::vec4(3 * u*u, 2 * u, 1, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrix); //First derivative
+	glm::vec3 acceleration(glm::vec4(6 * u, 2, 0, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrix); //Second derivative
 
 	float mv = glm::length(velocity);
 	return glm::length(glm::cross(velocity, acceleration)) / (mv * mv * mv);
@@ -206,10 +226,11 @@ void subDivide(float u1, float u2, glm::mat3x4 &controlMatrix, bool addFirstPoin
 		lines.push_back(*point1);
 	}
 
-	float curvature = calculateCurvature((u1 + umid) / 2, controlMatrix);
-	//cout << "at:" << umid << " between " << u1 << " and " << u2 << " curve is: " << curvature << " flip? " << addFirstPoint << endl;
-	//if (glm::length(glm::distance(*point1, *point2)) > 0.01f)
-	if(curvature > 1.0f && glm::length(glm::distance(*point1, *point2)) > 0.05f)
+	float curvature = calculateCurvature(umid, controlMatrix);
+
+	// If there is a high curvature and there is a significant distance between points, sub divide again to get extra precision
+	// Ignore curvature if the points are too close together since there's no visual difference and you're just wasting computer resources (even causing stack overflows) calculate sections with super high curvature
+	if(curvature > 1.0f && glm::length(glm::distance(*point1, *point2)) > 0.04f)
 	{
 		subDivide(u1, umid, controlMatrix, false);
 		subDivide(umid, u2, controlMatrix, true);
@@ -222,8 +243,10 @@ void calculateSplines()
 {
 	lines.clear();
 
+	// Calculate splines for all the sets of points and tangent points
 	for (unsigned i = 0; i < tangentPositions.size() - 1; i++)
 	{
+		// Create a control matrix
 		float controlValues[12] = {
 			pointPositions[i].x, pointPositions[i + 1].x, tangentPositions[i].x, tangentPositions[i + 1].x,
 			pointPositions[i].y, pointPositions[i + 1].y, tangentPositions[i].y, tangentPositions[i + 1].y,
@@ -234,9 +257,7 @@ void calculateSplines()
 
 		controlMatrices.push_back(controlMatrix);
 
-		//glm::vec3* point1 = calculateSplinePoint(0, controlMatrix);
-		//lines.push_back(*point1);
-
+		// Split immediately so that we don't start on an inflection point
 		subDivide(0.0f, 0.5f, controlMatrix, true);
 		subDivide(0.5f, 1.0f, controlMatrix, true);
 
@@ -262,7 +283,6 @@ bool initialize() {
 
 	glViewport(0, 0, WIDTH, HEIGHT);
 	proj_matrix = glm::ortho(-1, 1, -1, 1);
-	//view_matrix = glm::vec4(0, 0, WIDTH, HEIGHT);
 
 	int w, h;
 	glfwGetWindowSize(window, &w, &h);
@@ -303,11 +323,13 @@ bool cleanUp() {
 	// Close GL context and any other GLFW resources
 	glfwTerminate();
 
+	// Empty vectors
 	lines.clear();
 	pointPositions.clear();
 	tangentPositions.clear();
 	controlMatrices.clear();
 
+	// Reset states
 	enterPressed = false;
 	splinesComputed = false;
 	backspacePressed = false;
@@ -418,9 +440,6 @@ int main() {
 
 	while (true)
 	{
-
-
-
 		cout << "How many points would you like to enter?" << endl;
 		cin >> numberOfPoints;
 
@@ -451,13 +470,6 @@ int main() {
 			(void*)0            // array buffer offset
 			);
 
-		/*
-		pointPositions.push_back(glm::vec3(0, 0, 1));
-		pointPositions.push_back(glm::vec3(0.5, 0, 1));
-		tangentPositions.push_back(glm::vec3(0, 0.5, 1));
-		tangentPositions.push_back(glm::vec3(0.5, 0.5, 1));
-		*/
-
 		float u = 0;
 		int controlIndex = 0;
 
@@ -469,32 +481,28 @@ int main() {
 
 			glUseProgram(shader_program);
 
-			//g_vertex_buffer_data[0] = mousePosition.x;
-			//g_vertex_buffer_data[1] = mousePosition.y;
-
-			//model_matrix = glm::translate(oriModel, mousePosition);
-
-			// 
+			// Process arrow key input by moving the camera
 			switch (arrowKey)
 			{
 			case ArrowKeys::none:
 				break;
 			case ArrowKeys::left:
-				view_matrix = glm::translate(view_matrix, glm::vec3(-0.01f, 0.0f, 0.0f));
+				view_matrix = glm::translate(view_matrix, CAMERA_MOVE_SPEED * glm::vec3(-1.0f, 0.0f, 0.0f));
 				break;
 			case ArrowKeys::right:
-				view_matrix = glm::translate(view_matrix, glm::vec3(0.01f, 0.0f, 0.0f));
+				view_matrix = glm::translate(view_matrix, CAMERA_MOVE_SPEED * glm::vec3(1.0f, 0.0f, 0.0f));
 				break;
 			case ArrowKeys::up:
-				view_matrix = glm::translate(view_matrix, glm::vec3(0.0f, 0.01f, 0.0f));
+				view_matrix = glm::translate(view_matrix, CAMERA_MOVE_SPEED * glm::vec3(0.0f, 1.0f, 0.0f));
 				break;
 			case ArrowKeys::down:
-				view_matrix = glm::translate(view_matrix, glm::vec3(0.0f, -0.01f, 0.0f));
+				view_matrix = glm::translate(view_matrix, CAMERA_MOVE_SPEED * glm::vec3(0.0f, -1.0f, 0.0f));
 				break;
 			default:
 				break;
 			}
 
+			// If enough points have been entered and the user presses enter, calculate the splines
 			if (tangentPositions.size() > 1 && tangentPositions.size() == pointPositions.size() && enterPressed)
 			{
 				enterPressed = false;
@@ -504,12 +512,14 @@ int main() {
 				splinesComputed = true;
 			}
 
+			// Reset the buffer
 			delete g_vertex_buffer_data;
 
 			int pointsBufferSize = (pointPositions.size() + tangentPositions.size()) * 3;
 			int tangeantLinesBufferSize = tangentPositions.size() * 2 * 3;
 			g_vertex_buffer_data = new GLfloat[pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3) + TRIANGLE_BUFFER_SIZE];
 
+			// Copy all the points to the buffer
 			for (unsigned i = 0; i < pointPositions.size(); i++)
 			{
 				g_vertex_buffer_data[i * 3] = pointPositions[i].x;
@@ -519,6 +529,7 @@ int main() {
 
 			int offset = pointPositions.size() * 3;
 
+			// Copy all the tangeant points to the buffer
 			for (unsigned i = 0; i < tangentPositions.size(); i++)
 			{
 				g_vertex_buffer_data[offset + i * 3] = tangentPositions[i].x;
@@ -526,7 +537,7 @@ int main() {
 				g_vertex_buffer_data[offset + i * 3 + 2] = tangentPositions[i].z;
 			}
 
-
+			// Create tangeant lines on the buffer
 			for (unsigned i = 0; i < tangentPositions.size(); i++)
 			{
 				g_vertex_buffer_data[pointsBufferSize + i * 6] = pointPositions[i].x;
@@ -537,41 +548,43 @@ int main() {
 				g_vertex_buffer_data[pointsBufferSize + i * 6 + 5] = tangentPositions[i].z;
 			}
 
-
-
+			
 			offset = pointsBufferSize + tangeantLinesBufferSize;
 
+			// Copy the splines onto the buffer
 			for (unsigned i = 0; i < lines.size(); i++)
 			{
 				g_vertex_buffer_data[offset + i * 3] = lines[i].x;
 				g_vertex_buffer_data[offset + i * 3 + 1] = lines[i].y;
-				g_vertex_buffer_data[offset + i * 3 + 2] = 1;// lines[i].z;
+				g_vertex_buffer_data[offset + i * 3 + 2] = 1;
 			}
 
 			offset += lines.size() * 3;
 
+			// Copy the triangle onto the buffer
 			for (int i = 0; i < TRIANGLE_BUFFER_SIZE; i++)
 			{
 				g_vertex_buffer_data[offset + i] = triangleBuffer[i];
 			}
 
-
+			// Send the buffer off to the GPU
 			glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data) * (pointsBufferSize + tangeantLinesBufferSize + (lines.size() * 3) + TRIANGLE_BUFFER_SIZE), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
-
-
-
 
 			//Pass the values of the three matrices to the shaders
 			glUniformMatrix4fv(proj_matrix_id, 1, GL_FALSE, glm::value_ptr(proj_matrix));
 			glUniformMatrix4fv(view_matrix_id, 1, GL_FALSE, glm::value_ptr(view_matrix));
 			glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, glm::value_ptr(model_matrix));
-			glUniform1i(is_triangle_id, 0);
+			glUniform1i(is_triangle_id, 0); // Tell the shader we're not drawing the triangle
 
 			glBindVertexArray(VAO);
-			// Draw the triangle !
-			glDrawArrays(GL_POINTS, 0, pointsBufferSize / 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
+
+			// Draw the points !
+			glDrawArrays(GL_POINTS, 0, pointsBufferSize / 3);
+
+			// Draw the tangeant lines
 			glDrawArrays(GL_LINES, pointsBufferSize / 3, tangeantLinesBufferSize / 3);
 
+			// Draw the spline as points or a line strip depending on the selected mode
 			if (viewMode == ViewMode::splines)
 			{
 				glDrawArrays(GL_LINE_STRIP, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
@@ -580,47 +593,44 @@ int main() {
 				glDrawArrays(GL_POINTS, pointsBufferSize / 3 + tangeantLinesBufferSize / 3, lines.size());
 			}
 
-
-
-
+			// If the splines have been computed, move the triangle along the lines
 			if (controlMatrices.size() > 0)
 			{
+				// Find the triangle's position
 				glm::vec3 trianglePosition = glm::vec4(u*u*u, u*u, u, 1)*glm::transpose(hermiteBasisMatrix)*controlMatrices[controlIndex];
 				trianglePosition.z = 0;
+				
+				// Find the triangle's rotation
 				glm::vec3 triangleAngle = glm::vec4(3 * u*u, 2 * u, 1, 0)*glm::transpose(hermiteBasisMatrix)*controlMatrices[controlIndex];
 				triangleAngle.z = 0;
 				float hyp = sqrt(triangleAngle[0] * triangleAngle[0] + triangleAngle[1] * triangleAngle[1]);
-				float msin = triangleAngle[1] / hyp;
+				float sin = triangleAngle[1] / hyp;
 				float cos = triangleAngle[0] / hyp;
-				glm::mat2 triangleRotation(msin, -1.0f * cos, cos, msin);
-				//glm::mat2 triangleRotation(cos, -1.0f * msin, msin, cos);
+				glm::mat2 triangleRotation(sin, -1.0f * cos, cos, sin); // The rotation matrix so that the triangle lines up along the line
 				glm::mat4 triangleModel2(model_matrix * glm::mat4(triangleRotation));
-				triangleModel2[2].z = 1;
+				triangleModel2[2].z = 1; // Make the remaining elements an identity matrix
 				triangleModel2[3].w = 1;
-				glm::mat4 triangleModel = glm::translate(model_matrix, trianglePosition);
-				//triangleModel = glm::rotate(triangleModel, atan2(triangleAngle[1], triangleAngle[0]), glm::vec3(0.0f, 0.0f, 1.0f));
+				glm::mat4 triangleModel = glm::translate(model_matrix, trianglePosition); // Move the triangle
+				triangleModel = triangleModel * triangleModel2; // Rotate the triangle
 
-				//float curvature = calculateCurvature(u, controlMatrices[controlIndex]);
-
-				//cout << curvature << endl;
-
-				//triangleModel = glm::scale(triangleModel, glm::vec3(1, curvature, 1));
-				triangleModel = triangleModel * triangleModel2;
-
-
+				// Tell the shader we are drawing the triangle and give it its location
 				glUniform1i(is_triangle_id, 1);
 				glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, glm::value_ptr(triangleModel));
 
+				// Draw the triangle
 				glDrawArrays(GL_TRIANGLES, pointsBufferSize / 3 + tangeantLinesBufferSize / 3 + lines.size(), 3);
 
-				u += 0.005;
+				// Increment the position along the spline
+				u += TRIANGLE_SPLINE_FOLLOW_SPEED;
 
+				// If we have incremented along the entire spline, reset the position along the spline and move to the next spline
 				if (u > 1)
 				{
 					u = 0;
 					controlIndex++;
 					if (controlIndex == controlMatrices.size())
 					{
+						// If we have moved past the last spline, start back at the first spline
 						controlIndex = 0;
 					}
 				}
